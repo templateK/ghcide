@@ -175,6 +175,7 @@ executable ghcide
                 "-with-rtsopts=-I0 -qg -A128M"
     main-is: Main.hs
     build-depends:
+        time,
         hslogger,
         aeson,
         base == 4.*,
@@ -204,9 +205,6 @@ executable ghcide
     other-modules:
         Arguments
         Paths_ghcide
-        Rules
-        RuleTypes
-        Util
 
     default-extensions:
         BangPatterns
