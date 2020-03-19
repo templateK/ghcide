@@ -36,6 +36,7 @@ import Data.Typeable
 import qualified Data.ByteString.Internal as BS
 import Fingerprint
 import GhcMonad
+import GhcPlugins              hiding ( Unique, (<>) )
 import Control.Exception
 import Data.IORef
 import Data.Version (showVersion, Version)
@@ -175,10 +176,9 @@ data HscEnvEq
 -- | Unwrap an 'HsEnvEq'.
 hscEnv :: HscEnvEq -> HscEnv
 hscEnv = either error id . hscEnv'
--- hscEnv (HscEnvEq _ x _) = x
 
 hscEnv' :: HscEnvEq -> Either String HscEnv
-hscEnv' (HscEnvEq _ x) = Right x
+hscEnv' (HscEnvEq _ x _) = Right x
 hscEnv' GhcVersionMismatch{..} = Left $
     unwords
         ["ghcide compiled against GHC"

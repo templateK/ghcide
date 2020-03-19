@@ -160,10 +160,10 @@ main = do
         ide <- initialise def mainRule (pure $ IdInt 0) (showEvent lock) (logger Info) debouncer (defaultIdeOptions $ loadSession dir) vfs
 
         putStrLn "\nStep 4/6: Type checking the files"
-        setFilesOfInterest ide $ HashSet.fromList $ map toNormalizedFilePath files
-        _ <- runActionSync ide $ uses TypeCheck (map toNormalizedFilePath files)
---        results <- runActionSync ide $ use TypeCheck $ toNormalizedFilePath "src/Development/IDE/Core/Rules.hs"
---        results <- runActionSync ide $ use TypeCheck $ toNormalizedFilePath "exe/Main.hs"
+        setFilesOfInterest ide $ HashSet.fromList $ map toNormalizedFilePath' files
+        _ <- runActionSync ide $ uses TypeCheck (map toNormalizedFilePath' files)
+--        results <- runActionSync ide $ use TypeCheck $ toNormalizedFilePath' "src/Development/IDE/Core/Rules.hs"
+--        results <- runActionSync ide $ use TypeCheck $ toNormalizedFilePath' "exe/Main.hs"
         return ()
 
 expandFiles :: [FilePath] -> IO [FilePath]
@@ -220,10 +220,10 @@ targetToFile :: [FilePath] -> TargetId -> IO [NormalizedFilePath]
 targetToFile is (TargetModule mod) = do
     let fps = [i </> (moduleNameSlashes mod) -<.> ext | ext <- exts, i <- is ]
         exts = ["hs", "hs-boot", "lhs"]
-    mapM (fmap (toNormalizedFilePath) . canonicalizePath) fps
+    mapM (fmap (toNormalizedFilePath') . canonicalizePath) fps
 targetToFile _ (TargetFile f _) = do
   f' <- canonicalizePath f
-  return [(toNormalizedFilePath f')]
+  return [(toNormalizedFilePath' f')]
 
 setNameCache :: IORef NameCache -> HscEnv -> HscEnv
 setNameCache nc hsc = hsc { hsc_NC = nc }
@@ -352,7 +352,7 @@ loadSession dir = liftIO $ do
         let mv = Map.lookup hieYaml fm
         let v = fromMaybe HM.empty mv
         cfp <- liftIO $ canonicalizePath file
-        case HM.lookup (toNormalizedFilePath cfp) v of
+        case HM.lookup (toNormalizedFilePath' cfp) v of
           Just (_, old_di) -> do
             deps_ok <- checkDependencyInfo old_di
             unless deps_ok $ do
@@ -361,7 +361,7 @@ loadSession dir = liftIO $ do
               modifyVar_ hscEnvs (return . Map.adjust (\(h, _) -> (h, [])) hieYaml )
           Nothing -> return ()
         -- We sort so exact matches come first.
-        case HM.lookup (toNormalizedFilePath cfp) v of
+        case HM.lookup (toNormalizedFilePath' cfp) v of
             Just opts -> do
                 --putStrLn $ "Cached component of " <> show file
                 pure (fst opts)
@@ -370,7 +370,7 @@ loadSession dir = liftIO $ do
                 cradle <- maybe (loadImplicitCradle $ addTrailingPathSeparator dir) loadCradle hieYaml
                 opts <- cradleToSessionOpts cradle_lock cradle cfp
                 print opts
-                fst <$> session (hieYaml, toNormalizedFilePath cfp, opts)
+                fst <$> session (hieYaml, toNormalizedFilePath' cfp, opts)
     return $ \file -> liftIO $ withLock lock $ do
         hieYaml <- cradleLoc file
         sessionOpts (hieYaml, file)
