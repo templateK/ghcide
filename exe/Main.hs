@@ -70,18 +70,17 @@ import GhcMonad
 import HscTypes (HscEnv(..), ic_dflags)
 import DynFlags (PackageFlag(..), PackageArg(..))
 import GHC hiding (def)
-import qualified GHC.Paths
+import           GHC.Check                      (runTimeVersion, compileTimeVersionFromLibdir)
 
 import           HIE.Bios.Cradle
 import           HIE.Bios.Types
 import System.Directory
 
+import Utils
+
 --import Rules
 --import RuleTypes
 --
--- Set the GHC libdir to the nix libdir if it's present.
-getLibdir :: IO FilePath
-getLibdir = fromMaybe GHC.Paths.libdir <$> lookupEnv "NIX_GHC_LIBDIR"
 
 ghcideVersion :: IO String
 ghcideVersion = do
@@ -319,7 +318,11 @@ loadSession dir = liftIO $ do
               let hscEnv' = hscEnv { hsc_dflags = df
                                    , hsc_IC = (hsc_IC hscEnv) { ic_dflags = df } }
 
-              res <- (, di) <$> newHscEnvEq hscEnv' uids
+              versionMismatch <- evalGhcEnv hscEnv' checkGhcVersion
+              henv <- case versionMismatch of
+                        Just mismatch -> return mismatch
+                        Nothing -> newHscEnvEq hscEnv' uids
+              let res = (henv, di)
               print res
 
               let is = importPaths df
@@ -372,8 +375,8 @@ loadSession dir = liftIO $ do
                 print opts
                 fst <$> session (hieYaml, toNormalizedFilePath' cfp, opts)
     return $ \file -> liftIO $ withLock lock $ do
-        hieYaml <- cradleLoc file
-        sessionOpts (hieYaml, file)
+              hieYaml <- cradleLoc file
+              sessionOpts (hieYaml, file)
 
 checkDependencyInfo :: Map.Map FilePath (Maybe UTCTime) -> IO Bool
 checkDependencyInfo old_di = do
@@ -482,3 +485,13 @@ getCacheDir opts = IO.getXdgDirectory IO.XdgCache (cacheDir </> opts_hash)
 -- Prefix for the cache path
 cacheDir :: String
 cacheDir = "ghcide"
+
+compileTimeGhcVersion :: Version
+compileTimeGhcVersion = $$(compileTimeVersionFromLibdir getLibdir)
+
+checkGhcVersion :: Ghc (Maybe HscEnvEq)
+checkGhcVersion = do
+    v <- runTimeVersion
+    return $ if v == Just compileTimeGhcVersion
+        then Nothing
+        else Just GhcVersionMismatch {compileTime = compileTimeGhcVersion, runTime = v}
