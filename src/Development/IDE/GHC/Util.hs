@@ -169,6 +169,8 @@ moduleImportPath (takeDirectory . fromNormalizedFilePath -> pathDir) mn
 data HscEnvEq
     = HscEnvEq !Unique !HscEnv
                [(InstalledUnitId, DynFlags)] -- In memory components for this HscEnv
+               -- This is only used at the moment for the import dirs in
+               -- the DynFlags
     | GhcVersionMismatch { compileTime :: !Version
                          , runTime     :: !(Maybe Version)
                          }
