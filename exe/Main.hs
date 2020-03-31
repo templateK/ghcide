@@ -194,7 +194,7 @@ showEvent lock e = withLock lock $ print e
 cradleToSessionOpts :: Lock -> Cradle a -> FilePath -> IO ComponentOptions
 cradleToSessionOpts lock cradle file = do
     let showLine s = putStrLn ("> " ++ s)
-    cradleRes <- withLock lock $ mask $ \_ -> runCradle (cradleOptsProg cradle) showLine file
+    cradleRes <- withLock lock $ uninterruptibleMask $ \_ -> runCradle (cradleOptsProg cradle) showLine file
     opts <- case cradleRes of
         CradleSuccess r -> pure r
         CradleFail err -> throwIO err
