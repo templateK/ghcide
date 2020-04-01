@@ -374,7 +374,7 @@ loadSession dir = liftIO $ do
                 opts <- cradleToSessionOpts cradle_lock cradle cfp
                 print opts
                 fst <$> session (hieYaml, toNormalizedFilePath' cfp, opts)
-    return $ \file -> liftIO $ withLock lock $ do
+    return $ \file -> liftIO $ mask_ $ withLock lock $ do
               hieYaml <- cradleLoc file
               sessionOpts (hieYaml, file)
 
