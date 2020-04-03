@@ -1,0 +1,10 @@
+packages: .
+
+documentation: false
+
+allow-newer: all
+
+source-repository-package
+    type: git
+    location: https://github.com/wz1000/shake.git
+    tag: 48c1c39be93557e0da0111efcc84005c2d1a2535
