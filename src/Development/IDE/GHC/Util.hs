@@ -182,6 +182,11 @@ hscEnv' GhcVersionMismatch{..} = Left $
 
 deps :: HscEnvEq -> [(InstalledUnitId, DynFlags)]
 deps (HscEnvEq _ _ u) = u
+deps (GhcVersionMismatch compileTime mbRunTime) =
+    error $ "Ghc version mismatch: " ++ compileTimeMsg ++ "\n" ++ runTimeMsg
+    where
+        compileTimeMsg = "compile time => " ++ show compileTime
+        runTimeMsg = "run time => " ++ show mbRunTime
 
 -- | Wrap an 'HscEnv' into an 'HscEnvEq'.
 newHscEnvEq :: HscEnv -> [(InstalledUnitId, DynFlags)] -> IO HscEnvEq
