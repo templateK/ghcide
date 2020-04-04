@@ -39,7 +39,7 @@ import GhcMonad
 import GhcPlugins              hiding ( Unique, (<>) )
 import Control.Exception
 import Data.IORef
-import Data.Version (showVersion, Version)
+import Data.Version (showVersion)
 import FileCleanup
 import Foreign.Ptr
 import Foreign.ForeignPtr
@@ -59,16 +59,6 @@ import qualified Data.ByteString          as BS
 import Lexer
 import StringBuffer
 import System.FilePath
-import HscTypes (cg_binds, md_types, cg_module, ModDetails, CgGuts, ic_dflags, hsc_IC, HscEnv(hsc_dflags))
-import PackageConfig (PackageConfig)
-import Outputable (showSDocUnsafe, ppr, showSDoc, Outputable)
-import Packages (getPackageConfigMap, lookupPackage')
-import SrcLoc (mkRealSrcLoc)
-import FastString (mkFastString)
-import DynFlags (emptyFilesToClean, unsafeGlobalDynFlags)
-import Module (moduleNameSlashes)
-import OccName (parenSymOcc)
-import RdrName (nameRdrName, rdrNameOcc)
 
 import Development.IDE.GHC.Compat as GHC
 import Development.IDE.Types.Location
