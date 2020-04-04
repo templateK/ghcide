@@ -8,6 +8,7 @@ module Development.IDE.GHC.Util(
     modifyDynFlags,
     evalGhcEnv,
     runGhcEnv,
+    deps,
     -- * GHC wrappers
     prettyPrint,
     printRdrName,
@@ -35,6 +36,7 @@ import Data.Typeable
 import qualified Data.ByteString.Internal as BS
 import Fingerprint
 import GhcMonad
+import GhcPlugins              hiding ( Unique, (<>) )
 import Control.Exception
 import Data.IORef
 import Data.Version (showVersion, Version)
@@ -147,27 +149,28 @@ runGhcEnv env act = do
 -- | Given a module location, and its parse tree, figure out what is the include directory implied by it.
 --   For example, given the file @\/usr\/\Test\/Foo\/Bar.hs@ with the module name @Foo.Bar@ the directory
 --   @\/usr\/Test@ should be on the include path to find sibling modules.
-moduleImportPath :: NormalizedFilePath -> GHC.ParsedModule -> Maybe FilePath
+moduleImportPath :: NormalizedFilePath -> GHC.ModuleName -> Maybe FilePath
 -- The call to takeDirectory is required since DAML does not require that
 -- the file name matches the module name in the last component.
 -- Once that has changed we can get rid of this.
-moduleImportPath (takeDirectory . fromNormalizedFilePath -> pathDir) pm
+moduleImportPath (takeDirectory . fromNormalizedFilePath -> pathDir) mn
     -- This happens for single-component modules since takeDirectory "A" == "."
     | modDir == "." = Just pathDir
     | otherwise = dropTrailingPathSeparator <$> stripSuffix modDir pathDir
   where
-    ms   = GHC.pm_mod_summary pm
-    mod'  = GHC.ms_mod ms
     -- A for module A.B
     modDir =
         takeDirectory $
         fromNormalizedFilePath $ toNormalizedFilePath' $
-        moduleNameSlashes $ GHC.moduleName mod'
+        moduleNameSlashes mn
 
 -- | An 'HscEnv' with equality. Two values are considered equal
 --   if they are created with the same call to 'newHscEnvEq'.
 data HscEnvEq
     = HscEnvEq !Unique !HscEnv
+               [(InstalledUnitId, DynFlags)] -- In memory components for this HscEnv
+               -- This is only used at the moment for the import dirs in
+               -- the DynFlags
     | GhcVersionMismatch { compileTime :: !Version
                          , runTime     :: !(Maybe Version)
                          }
@@ -177,7 +180,7 @@ hscEnv :: HscEnvEq -> HscEnv
 hscEnv = either error id . hscEnv'
 
 hscEnv' :: HscEnvEq -> Either String HscEnv
-hscEnv' (HscEnvEq _ x) = Right x
+hscEnv' (HscEnvEq _ x _) = Right x
 hscEnv' GhcVersionMismatch{..} = Left $
     unwords
         ["ghcide compiled against GHC"
@@ -187,25 +190,28 @@ hscEnv' GhcVersionMismatch{..} = Left $
         ,". This is unsupported, ghcide must be compiled with the same GHC version as the project."
         ]
 
+deps :: HscEnvEq -> [(InstalledUnitId, DynFlags)]
+deps (HscEnvEq _ _ u) = u
+
 -- | Wrap an 'HscEnv' into an 'HscEnvEq'.
-newHscEnvEq :: HscEnv -> IO HscEnvEq
-newHscEnvEq e = do u <- newUnique; return $ HscEnvEq u e
+newHscEnvEq :: HscEnv -> [(InstalledUnitId, DynFlags)] -> IO HscEnvEq
+newHscEnvEq e uids = do u <- newUnique; return $ HscEnvEq u e uids
 
 instance Show HscEnvEq where
-  show (HscEnvEq a _) = "HscEnvEq " ++ show (hashUnique a)
+  show (HscEnvEq a _ _) = "HscEnvEq " ++ show (hashUnique a)
   show GhcVersionMismatch{..} = "GhcVersionMismatch " <> show (compileTime, runTime)
 
 instance Eq HscEnvEq where
-  HscEnvEq a _ == HscEnvEq b _ = a == b
+  HscEnvEq a _ _ == HscEnvEq b _ _ = a == b
   GhcVersionMismatch a b == GhcVersionMismatch c d = a == c && b == d
   _ == _ = False
 
 instance NFData HscEnvEq where
-  rnf (HscEnvEq a b) = rnf (hashUnique a) `seq` b `seq` ()
+  rnf (HscEnvEq a b c) = rnf (hashUnique a) `seq` b `seq` c `seq` ()
   rnf GhcVersionMismatch{} = rnf runTime
 
 instance Hashable HscEnvEq where
-  hashWithSalt salt (HscEnvEq u _) = hashWithSalt salt u
+  hashWithSalt s (HscEnvEq a _b _c) = hashWithSalt s a
   hashWithSalt salt GhcVersionMismatch{..} = hashWithSalt salt (compileTime, runTime)
 
 -- Fake instance needed to persuade Shake to accept this type as a key.
