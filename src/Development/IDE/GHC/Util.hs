@@ -162,7 +162,7 @@ data HscEnvEq
                -- This is only used at the moment for the import dirs in
                -- the DynFlags
     | GhcVersionMismatch { compileTime :: !Version
-                         , runTime     :: !(Maybe Version)
+                         , runTime     :: !Version
                          }
 
 -- | Unwrap an 'HsEnvEq'.
@@ -176,7 +176,7 @@ hscEnv' GhcVersionMismatch{..} = Left $
         ["ghcide compiled against GHC"
         ,showVersion compileTime
         ,"but currently using"
-        ,maybe "an unknown version of GHC" (\v -> "GHC " <> showVersion v) runTime
+        ,"GHC " <> showVersion runTime
         ,". This is unsupported, ghcide must be compiled with the same GHC version as the project."
         ]
 

@@ -70,7 +70,22 @@ import GhcMonad
 import HscTypes (HscEnv(..), ic_dflags)
 import DynFlags (PackageFlag(..), PackageArg(..))
 import GHC hiding (def)
-import           GHC.Check                      (runTimeVersion, compileTimeVersionFromLibdir)
+
+-- ghc-check-0.1.0.3:
+-- compileTimeVersionFromLibdir :: IO FilePath -> TExpQ Version
+-- runTimeVersion :: Ghc (Maybe Version)
+
+
+-- ghc-check-0.3.0.1:
+-- makeGhcVersionChecker :: IO (Maybe FilePath) -> TExpQ (IO VersionCheck)
+-- makeGhcVersionChecker libdir returns a computation to check the run-time version of ghc against the compile-time version.
+
+-- checkGhcVersion :: Version -> IO VersionCheck
+-- Checks if the run-time version of the ghc package matches the given version.
+
+
+-- import           GHC.Check                      (runTimeVersion, compileTimeVersionFromLibdir)
+import qualified GHC.Check as GHC.Check
 
 import           HIE.Bios.Cradle
 import           HIE.Bios.Types
@@ -318,11 +333,11 @@ loadSession dir = liftIO $ do
         let new_cache (_iuid, (df, _uis, targets, cfp, di)) =  do
               let hscEnv' = hscEnv { hsc_dflags = df
                                    , hsc_IC = (hsc_IC hscEnv) { ic_dflags = df } }
-
-              versionMismatch <- evalGhcEnv hscEnv' checkGhcVersion
-              henv <- case versionMismatch of
-                        Just mismatch -> return mismatch
-                        Nothing -> newHscEnvEq hscEnv' uids
+              versionCheck <- ghcVersionCheckFromLibDir
+              henv <- case versionCheck of
+                        GHC.Check.Mismatch c r -> return GhcVersionMismatch {compileTime = c, runTime = r}
+                        GHC.Check.Match        -> newHscEnvEq hscEnv' uids
+                        GHC.Check.Failure s    -> die $ "ghcide: runtime and compile time ghc version match failure. " ++  s
               let res = (henv, di)
               print res
 
@@ -433,7 +448,7 @@ memoIO op = do
             Just res -> return (mp, res)
 
 setOptions :: GhcMonad m => ComponentOptions -> DynFlags -> m (DynFlags, [Target])
-setOptions (ComponentOptions theOpts _) dflags = do
+setOptions (ComponentOptions theOpts _root _deps) dflags = do
     cacheDir <- liftIO $ getCacheDir theOpts
     (dflags', targets) <- addCmdOpts theOpts dflags
     let dflags'' =
@@ -487,12 +502,5 @@ getCacheDir opts = IO.getXdgDirectory IO.XdgCache (cacheDir </> opts_hash)
 cacheDir :: String
 cacheDir = "ghcide"
 
-compileTimeGhcVersion :: Version
-compileTimeGhcVersion = $$(compileTimeVersionFromLibdir getLibdir)
-
-checkGhcVersion :: Ghc (Maybe HscEnvEq)
-checkGhcVersion = do
-    v <- runTimeVersion
-    return $ if v == Just compileTimeGhcVersion
-        then Nothing
-        else Just GhcVersionMismatch {compileTime = compileTimeGhcVersion, runTime = v}
+ghcVersionCheckFromLibDir :: IO GHC.Check.VersionCheck
+ghcVersionCheckFromLibDir = $$(GHC.Check.makeGhcVersionChecker (Just <$> getLibdir))
