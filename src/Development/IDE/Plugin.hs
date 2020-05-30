@@ -10,6 +10,7 @@ import           Language.Haskell.LSP.Types
 import Development.IDE.Compat
 import Development.IDE.Core.Rules
 import qualified Language.Haskell.LSP.Core as LSP
+import Language.Haskell.LSP.Messages (FromServerMessage(RspCodeAction))
 
 
 data Plugin c = Plugin
@@ -32,7 +33,7 @@ codeActionPlugin = codeActionPluginWithRules mempty
 
 codeActionPluginWithRules :: Rules () -> (LSP.LspFuncs c -> IdeState -> TextDocumentIdentifier -> Range -> CodeActionContext -> IO (Either ResponseError [CAResult])) -> Plugin c
 codeActionPluginWithRules rr f = Plugin rr $ PartialHandlers $ \WithMessage{..} x -> return x{
-    LSP.codeActionHandler = Nothing -- withResponse RspCodeAction g
+    LSP.codeActionHandler = withResponse RspCodeAction g
     }
     where
       g lsp state (CodeActionParams a b c _) = fmap List <$> f lsp state a b c
