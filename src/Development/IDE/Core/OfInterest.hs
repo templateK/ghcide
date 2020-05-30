@@ -28,7 +28,6 @@ import Development.Shake
 import Development.IDE.Types.Location
 import Development.IDE.Types.Logger
 import Development.IDE.Core.Shake
-import Development.IDE.Core.RuleTypes
 
 
 newtype OfInterestVar = OfInterestVar (Var (HashSet NormalizedFilePath))

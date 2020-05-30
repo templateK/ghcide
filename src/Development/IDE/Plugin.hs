@@ -10,7 +10,6 @@ import           Language.Haskell.LSP.Types
 import Development.IDE.Compat
 import Development.IDE.Core.Rules
 import qualified Language.Haskell.LSP.Core as LSP
-import Language.Haskell.LSP.Messages
 
 
 data Plugin c = Plugin

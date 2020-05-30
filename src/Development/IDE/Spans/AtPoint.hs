@@ -24,19 +24,15 @@ import Development.IDE.Types.Options
 import Development.IDE.Spans.Common
 
 -- GHC API imports
-import DynFlags
-import FastString
 import Name
 import Outputable hiding ((<>))
 import SrcLoc
-import Module
 
 import Control.Monad.Extra
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
 import           Data.Maybe
-import           Data.List
 import qualified Data.Text as T
 import qualified Data.Map as M
 import qualified Data.Array as A

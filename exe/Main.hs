@@ -53,8 +53,7 @@ import System.IO
 import System.Exit
 import HIE.Bios.Environment (addCmdOpts, makeDynFlagsAbsolute)
 import Paths_ghcide
-import Development.GitRev
-import Development.Shake (Action,  action)
+import Development.Shake (Action)
 import qualified Data.HashSet as HashSet
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as Map
@@ -78,10 +77,7 @@ import           HIE.Bios.Cradle
 import           HIE.Bios.Types
 import System.Directory
 
-import Utils (getLibdir)
-
-import Debug.Trace
-import NameCache
+import Utils
 
 import HieDb.Create
 import HieDb.Types

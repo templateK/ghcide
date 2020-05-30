@@ -98,7 +98,6 @@ import           Numeric.Extra
 import Language.Haskell.LSP.Types
 import Control.Monad.IO.Class
 import Control.Monad.Reader
-import Control.Monad.Writer
 import Control.Monad.Trans.Maybe
 import qualified Data.HashPSQ as PQ
 import OpenTelemetry.Eventlog
@@ -253,7 +252,7 @@ lastValueIO s@ShakeExtras{positionMapping,persistentKeys,state} k file = do
 -- | Return the most recent, potentially stale, value and a PositionMapping
 -- for the version of that value.
 lastValue :: IdeRule k v => k -> NormalizedFilePath -> Value v -> Action (Maybe (v, PositionMapping))
-lastValue key file v = do
+lastValue key file _v = do
     s <- getShakeExtras
     liftIO $ lastValueIO s key file
 

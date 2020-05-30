@@ -77,26 +77,26 @@ import FastString (FastString)
 
 import Development.IDE.GHC.HieAst (mkHieFile)
 #if MIN_GHC_API_VERSION(8,6,0)
-import Development.IDE.GHC.HieBin (readHieFile,writeHieFile,NameCacheUpdater(..),HieFileResult(..))
+-- import Development.IDE.GHC.HieBin (readHieFile,writeHieFile,NameCacheUpdater(..),HieFileResult(..))
 #endif
 
 import Data.Map (Map)
 
 #if MIN_GHC_API_VERSION(8,10,0)
-import HscTypes (mi_mod_hash)
+-- import HscTypes (mi_mod_hash)
 #endif
 
 #if MIN_GHC_API_VERSION(8,8,0)
-import HscTypes (srcErrorMessages)
+-- import HscTypes (srcErrorMessages)
 import Control.Applicative ((<|>))
-import Development.IDE.GHC.HieAst (mkHieFile)
+-- import Development.IDE.GHC.HieAst (mkHieFile)
 import Development.IDE.GHC.HieBin
 import HieUtils
 import HieTypes
-import IfaceEnv
+-- import IfaceEnv
 
 
-import HieUtils
+-- import HieUtils
 
 #else
 

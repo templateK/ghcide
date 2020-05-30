@@ -33,11 +33,8 @@ module Development.IDE.Core.Rules(
 import Fingerprint
 
 import Data.Binary
-import Data.Binary hiding (get, put)
-import Data.Bifunctor (second)
 import Util
 import Control.Monad.Extra
-import Control.Applicative
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
 import Development.IDE.Core.Compile
@@ -83,23 +80,12 @@ import Development.Shake.Classes hiding (get, put)
 import Control.Monad.Trans.Except (runExceptT)
 import Data.ByteString (ByteString)
 import Control.Concurrent.Async (concurrently)
-import Control.Concurrent.Extra
-import System.Time.Extra
 import Control.Monad.Reader
-import System.Directory ( getModificationTime )
-import qualified System.Directory as Dir
 import Control.Exception
 
-import OccName
 import qualified HieDb
-import Data.Char
 
-import Module (toInstalledUnitId)
-import Packages
-
-import System.IO
-
-import Control.Monad.State
+import System.IO (hPutStrLn, stderr)
 
 -- | This is useful for rules to convert rules that can only produce errors or
 -- a result into the more general IdeResult type that supports producing
@@ -144,29 +130,6 @@ getAtPoint file pos = fmap join $ runMaybeT $ do
   !pos' <- MaybeT (return $ fromCurrentPosition mapping pos)
   return $ AtPoint.atPoint opts hf dm pos'
 
-lookupMod :: DynFlags -> IdeOptions -> ModuleName -> UnitId -> Bool -> MaybeT IdeAction Uri
-lookupMod dflags opts mn uid isBoot
- | toInstalledUnitId uid == thisInstalledUnitId dflags = do
-      f <- MaybeT $ locateModuleFile [importPaths dflags] (optExtensions opts) doesExist isBoot mn
-      pure $ fromNormalizedUri . filePathToUri' $ f
-  | otherwise = MaybeT $ do
-    let mp = lookupPackage dflags uid
-    case mp of
-      Nothing -> pure Nothing
-      Just (packageName -> PackageName p) ->
-        case lookupModuleWithSuggestions dflags mn (Just p) of
-          _ -> error "Goto def for package deps not implemented"
-  where
-    doesExist f = do
-      e <- useWithStaleFast' GetFileExists f
-      case stale e of
-        Just r -> pure (fst r)
-        Nothing -> liftIO $ do
-          hPutStrLn stderr "WAITING FOR BARRIER *********************"
-          r <- waitBarrier (uptoDate e)
-          hPutStrLn stderr "BARRIER ENDED *********************"
-          maybe (Dir.doesFileExist $ fromNormalizedFilePath f) pure r
-
 -- | Goto Definition.
 getDefinition :: NormalizedFilePath -> Position -> IdeAction (Maybe [Location])
 getDefinition file pos = runMaybeT $ do
@@ -204,9 +167,6 @@ refsAtPoint :: NormalizedFilePath -> Position -> IdeAction (Maybe [Location])
 refsAtPoint file pos = runMaybeT $ do
     hiedb <- lift $ hiedb <$> askShake
     _ <- lift $ runMaybeT $ reportDbState hiedb
-
-    opts <- liftIO . getIdeOptionsIO =<< ask
-
     ((hf,PRefMap rf),mapping) <- useE GetHieFile file
     !pos' <- MaybeT (return $ fromCurrentPosition mapping pos)
     AtPoint.referencesAtPoint hiedb (\_ _ _ -> MaybeT $ pure Nothing) hf rf pos'
@@ -315,15 +275,6 @@ getLocatedImportsRule =
         case sequence pkgImports of
             Nothing -> pure (concat diags, Nothing)
             Just pkgImports -> pure (concat diags, Just (moduleImports, Set.fromList $ concat pkgImports))
-
-type RawDepM a = StateT (RawDependencyInformation, IntMap ArtifactsLocation) Action a
-
-execRawDepM :: Monad m => StateT (RawDependencyInformation, IntMap a1) m a2 -> m (RawDependencyInformation, IntMap a1)
-execRawDepM act =
-    execStateT act
-        ( RawDependencyInformation IntMap.empty emptyPathIdMap IntMap.empty
-        , IntMap.empty
-        )
 
 -- | Given a target file path, construct the raw dependency results by following
 -- imports recursively.

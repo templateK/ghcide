@@ -66,7 +66,7 @@ import           LoadIface                      (readIface)
 import qualified Maybes
 import           MkIface
 import           StringBuffer                   as SB
-import           TcRnMonad (initIfaceLoad, tcg_th_coreplugins, tcg_src)
+import           TcRnMonad (initIfaceLoad, tcg_th_coreplugins)
 import           TcIface                        (typecheckIface)
 import           TidyPgm
 
