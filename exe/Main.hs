@@ -72,7 +72,7 @@ import GhcMonad
 import HscTypes (HscEnv(..), ic_dflags)
 import DynFlags (PackageFlag(..), PackageArg(..))
 import GHC hiding (def)
-import           GHC.Check                      ( VersionCheck(..), makeGhcVersionChecker )
+import qualified GHC.Check as GHC.Check
 
 import           HIE.Bios.Cradle
 import           HIE.Bios.Types
@@ -364,10 +364,13 @@ loadSession dir = do
               let hscEnv' = hscEnv { hsc_dflags = df
                                    , hsc_IC = (hsc_IC hscEnv) { ic_dflags = df } }
 
-              versionMismatch <- checkGhcVersion
-              henv <- case versionMismatch of
-                        Just mismatch -> return mismatch
-                        Nothing -> newHscEnvEq hscEnv' uids
+              -- FIXME: get runtime dir instead compile time dir like GHCPaths.libdir
+              --        getLibdir is not enought because it uses environement variable
+              --        only for nix.
+              -- shell command `ghc --print-libdir` produces the same value as GHC.Paths.libdir.
+              libdir <- Utils.getLibdir
+              installationCheck <- ghcVersionCheckFromLibDir libdir
+              henv <- ghcRuntimeCheckWithStrat hscEnv' uids libdir installationCheck
               let res = (([], Just henv), di)
               print res
 
@@ -638,17 +641,34 @@ getCacheDir prefix opts = IO.getXdgDirectory IO.XdgCache (cacheDir </> prefix ++
 cacheDir :: String
 cacheDir = "ghcide"
 
-ghcVersionChecker :: IO VersionCheck
-ghcVersionChecker = $$(makeGhcVersionChecker (pure <$> getLibdir))
+ghcVersionCheckFromLibDir :: GHC.Check.GhcVersionChecker
+ghcVersionCheckFromLibDir = $$(GHC.Check.makeGhcVersionChecker (getLibdir))
 
-checkGhcVersion :: IO (Maybe HscEnvEq)
-checkGhcVersion = do
-    res <- ghcVersionChecker
-    case res of
-        Failure err -> do
-          putStrLn $ "Error while checking GHC version: " ++ show err
-          return Nothing
-        Mismatch {..} ->
-          return $ Just GhcVersionMismatch {..}
-        _ ->
-          return Nothing
+ghcRuntimeCheckWithStrat
+  :: HscEnv
+  -> [(InstalledUnitId, DynFlags)]
+  -> FilePath
+  -> GHC.Check.InstallationCheck
+  -> IO HscEnvEq
+ghcRuntimeCheckWithStrat hscEnv' uids runTimeLibdir installationCheck =
+  case installationCheck of
+    GHC.Check.InstallationChecked _compileTime _packageCheck -> do
+      res <- runGhc (Just runTimeLibdir) $ _packageCheck
+      case res of
+        Nothing -> newHscEnvEq hscEnv' uids
+        Just (_, GHC.Check.VersionMismatch _compileTime _runTime) ->
+          die $ "ghcide package version mismatch: \n"
+              ++ "run time     : " ++ (showVersion _runTime)     ++ "\n"
+              ++ "compile time : " ++ (showVersion _compileTime) ++ "\n"
+              ++ "ghc version match failure. "
+        Just (_, GHC.Check.AbiMismatch _compileTimeAbi _runTimeAbi)  ->
+          die $ "ghcide package abi mismatch: \n"
+              ++ "run time abi     : " ++ _runTimeAbi     ++ "\n"
+              ++ "compile time abi : " ++ _compileTimeAbi ++ "\n"
+              ++ "ghc version match failure. "
+    GHC.Check.InstallationMismatch _libdir _compileTime _runTime ->
+      die $ "ghcide installation mismatch \n"
+          ++ "run time     : " ++ (showVersion _runTime)     ++ "\n"
+          ++ "compile time : " ++ (showVersion _compileTime) ++ "\n"
+          ++ "ghc version match failure. "
+    GHC.Check.InstallationNotFound _libdir -> die $ "Installation not found on " ++ _libdir
