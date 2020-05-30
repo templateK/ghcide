@@ -78,7 +78,7 @@ import           HIE.Bios.Cradle
 import           HIE.Bios.Types
 import System.Directory
 
-import Utils
+import Utils (getLibdir)
 
 import Debug.Trace
 import NameCache
@@ -364,11 +364,7 @@ loadSession dir = do
               let hscEnv' = hscEnv { hsc_dflags = df
                                    , hsc_IC = (hsc_IC hscEnv) { ic_dflags = df } }
 
-              -- FIXME: get runtime dir instead compile time dir like GHCPaths.libdir
-              --        getLibdir is not enought because it uses environement variable
-              --        only for nix.
-              -- shell command `ghc --print-libdir` produces the same value as GHC.Paths.libdir.
-              libdir <- Utils.getLibdir
+              libdir <- getLibdir
               installationCheck <- ghcVersionCheckFromLibDir libdir
               henv <- ghcRuntimeCheckWithStrat hscEnv' uids libdir installationCheck
               let res = (([], Just henv), di)
