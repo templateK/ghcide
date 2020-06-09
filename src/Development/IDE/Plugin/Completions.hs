@@ -3,8 +3,7 @@
 #include "ghc-api-version.h"
 
 module Development.IDE.Plugin.Completions
-    (
-      plugin
+    ( plugin
     , getCompletionsLSP
     ) where
 
@@ -90,9 +89,9 @@ getCompletionsLSP lsp ide
               pm <- useWithStaleFast GetParsedModule npath
               pure (opts, liftA2 (,) compls pm)
           case compls of
-            Just ((cci', _), (pm, mapping)) -> do
-              let !position' = fromCurrentPosition mapping position
-              pfix <- maybe (return Nothing) (flip VFS.getCompletionPrefix cnts) position'
+            Just ((cci', _), (pm, _)) -> do
+              -- let !position' = fromCurrentPosition mapping position
+              pfix <- VFS.getCompletionPrefix position cnts
               case (pfix, completionContext) of
                 (Just (VFS.PosPrefixInfo _ "" _ _), Just CompletionContext { _triggerCharacter = Just "."})
                   -> return (Completions $ List [])
