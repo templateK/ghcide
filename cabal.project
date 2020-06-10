@@ -1,5 +1,4 @@
 packages: .
-          /Volumes/Ramdisk/haskell-lsp
 
 allow-newer: all
 
